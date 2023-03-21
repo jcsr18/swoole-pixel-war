@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+
+    <style>
+        * {
+            margin: 0;
+        }
+
+        body {
+            background-color: #F9F9F9;
+        }
+
+        .map, .colors {
+            display: flex;
+            justify-content: center;
+        }
+
+        #map {
+            margin-top: 50px;
+            border: black solid 2px;
+        }
+    </style>
+
+</head>
+<body>
+
+<div class="map">
+    <canvas id="map" width="520px" height="520px"></canvas>
+</div>
+
+<div class="colors" style="margin-top: 20px">
+    <input type="color" id="color" name="color" value="#000000">
+</div>
+
+
+
+<script src="socket.io.min.js"></script>
+<script>
+    const ws = new WebSocket('ws://localhost');
+
+    const map = document.getElementById('map');
+    const mapContext = map.getContext('2d');
+    const pixelSize = 10;
+    const mapWidth = 520 - pixelSize;
+    const mapHeight = 520 - pixelSize;
+
+    drawMap();
+
+    function drawMap() {
+
+        mapContext.lineWidth = 1;
+        mapContext.strokeStyle = "#b8b8b8";
+        for (let x = -10; x < mapWidth; x += pixelSize) {
+
+            for (let y = -10; y < mapHeight; y += pixelSize) {
+                mapContext.strokeRect(x+10, y+10, pixelSize, pixelSize);
+            }
+        }
+    }
+
+
+    map.addEventListener('click', (e) => requestDraw(e));
+
+    function requestDraw(event) {
+        const y =  Math.floor(event.offsetY / pixelSize);
+        const x = Math.floor(event.offsetX / pixelSize);
+        const color = document.getElementById('color').value;
+
+        ws.send(JSON.stringify({
+            type: 'draw',
+            position: { x, y },
+            color,
+        }));
+    }
+
+    function drawPixel(color, x, y) {
+        mapContext.fillStyle = color;
+        mapContext.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
+    }
+
+    function loadPixels(pixels) {
+        pixels.forEach((pixel) => {
+            drawPixel(pixel.color, pixel.position.x, pixel.position.y);
+        });
+    }
+
+    ws.addEventListener('message', function (response) {
+        const data = JSON.parse(response.data);
+
+        if (data.type === 'draw') {
+            drawPixel(data.color, data.position.x, data.position.y);
+        } else if (data.type === 'map-load') {
+            loadPixels(data.map)
+        }
+    });
+
+</script>
+
+
+</body>
+</html>
